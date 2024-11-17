@@ -7,7 +7,7 @@ import torch.nn.functional as F
 
 from ultralytics.utils.torch_utils import fuse_conv_and_bn
 
-from .conv import Conv, DWConv, GhostConv, LightConv, RepConv, autopad
+from .conv import Conv, DWConv, GhostConv, LightConv, RepConv, autopad, SimAM
 from .transformer import TransformerBlock
 
 __all__ = (
@@ -49,6 +49,7 @@ __all__ = (
     "Attention",
     "PSA",
     "SCDown",
+    "Bottleneck_simam",
 )
 
 
@@ -1106,3 +1107,31 @@ class SCDown(nn.Module):
     def forward(self, x):
         """Applies convolution and downsampling to the input tensor in the SCDown module."""
         return self.cv2(self.cv1(x))
+
+
+#simam with bottleneck
+class Bottleneck_simam(nn.Module):
+    """Standard bottleneck."""
+ 
+    def __init__(self, c1, c2, shortcut=True, g=1, k=(3, 3), e=0.5):
+        """Initializes a standard bottleneck module with optional shortcut connection and configurable parameters."""
+        super().__init__()
+        c_ = int(c2 * e)  # hidden channels
+        self.cv1 = Conv(c1, c_, k[0], 1)
+        self.cv2 = SimAM(c_)
+        self.add = shortcut and c1 == c2
+ 
+    def forward(self, x):
+        """Applies the YOLO FPN to input data."""
+        return x + self.cv2(self.cv1(x)) if self.add else self.cv2(self.cv1(x))
+
+if __name__ =='__main__':
+ 
+    bottleneck_simam = Bottleneck_simam(256,256)
+    #创建一个输入张量
+    batch_size = 1
+    input_tensor=torch.randn(batch_size, 256, 64, 64 )
+    #运行模型并打印输入和输出的形状
+    output_tensor =bottleneck_simam(input_tensor)
+    print("Input shape:",input_tensor.shape)
+    print("0utput shape:",output_tensor.shape)

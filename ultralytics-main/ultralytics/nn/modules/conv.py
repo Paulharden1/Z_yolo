@@ -21,6 +21,7 @@ __all__ = (
     "CBAM",
     "Concat",
     "RepConv",
+    "SimAM"
 )
 
 
@@ -330,3 +331,42 @@ class Concat(nn.Module):
     def forward(self, x):
         """Forward pass for the YOLOv8 mask Proto module."""
         return torch.cat(x, self.d)
+
+class SimAM(torch.nn.Module):
+    def __init__(self, e_lambda=1e-4):
+        super(SimAM, self).__init__()
+ 
+        self.activaton = nn.Sigmoid()
+        self.e_lambda = e_lambda
+ 
+    def __repr__(self):
+        s = self.__class__.__name__ + '('
+        s += ('lambda=%f)' % self.e_lambda)
+        return s
+ 
+    @staticmethod
+    def get_module_name():
+        return "simam"
+ 
+    def forward(self, x):
+        b, c, h, w = x.size()
+ 
+        n = w * h - 1
+ 
+        x_minus_mu_square = (x - x.mean(dim=[2, 3], keepdim=True)).pow(2)
+        y = x_minus_mu_square / (4 * (x_minus_mu_square.sum(dim=[2, 3], keepdim=True) / n + self.e_lambda)) + 0.5
+ 
+        return x * self.activaton(y)
+
+
+if __name__ =='__main__':
+ 
+    simam = SimAM(256)
+    #创建一个输入张量
+    batch_size = 1
+    input_tensor=torch.randn(batch_size, 256, 64, 64 )
+    #运行模型并打印输入和输出的形状
+    output_tensor =simam(input_tensor)
+    print("Input shape:",input_tensor.shape)
+    print("0utput shape:",output_tensor.shape)
+
